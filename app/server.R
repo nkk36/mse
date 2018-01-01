@@ -1,3 +1,10 @@
+###########################################################################################################################
+#                                                                                                                         #
+#                                             LOAD PACKAGES/FUNCTIONS/DATA                                                #
+#                                                                                                                         #
+###########################################################################################################################
+
+# Load packages
 library(shiny)
 library(shinydashboard)
 library(scales)
@@ -7,101 +14,67 @@ library(ggplot2)
 library(formattable)
 library(dplyr)
 
+# Load functions
+source("R/generate_sample_data.R")
+source("R/generate_observed_capture_data.R")
+source("R/plot_pdf_best_model.R")
+source("R/plot_model_estimates_range.R")
+source("R/get_all_model_estimates_table.R")
+
+
+
+###########################################################################################################################
+#                                                                                                                         #
+#                                                         SERVER                                                          #
+#                                                                                                                         #
+###########################################################################################################################
 
 function(input, output, session) {
   
-  Sample.Data = reactive({
+  #################################################################
+  #                                                               #
+  #                       REACTIVE DATA                           #
+  #                                                               #
+  #################################################################
+  
+  sample_data = reactive({
     
-    Objects = 1:input$TotalPop
-    ProbWeights = base::sample(x = 1:10, size = input$TotalPop,replace = TRUE)
-    
-    if (input$UneqCapProb == TRUE){
-      
-      Sample.A = base::sample(Objects, size = input$LS1, prob = ProbWeights)
-      
-      if (input$DepLists == TRUE){
-        
-        NotA = setdiff(Objects, Sample.A)
-        ListSize = round(0.25*input$LS2)
-        Sample.NotA = base::sample(NotA, size = ListSize)
-        A.NotA = c(Sample.A,Sample.NotA)
-        Sample.B = base::sample(A.NotA, size = input$LS2)
-        
-      }
-      else{
-        Sample.B = base::sample(Objects, size = input$LS2, prob = ProbWeights)
-      }
-      
-      Sample.C = base::sample(Objects, size = input$LS3, prob = ProbWeights)
-    }
-    else{
-      
-      Sample.A = base::sample(Objects, size = input$LS1)
-      
-      if (input$DepLists == TRUE){
-        
-        NotA = setdiff(Objects,Sample.A)
-        ListSize = round(0.25*input$LS2)
-        Sample.NotA = base::sample(NotA, size = ListSize)
-        A.NotA = c(Sample.A,Sample.NotA)
-        Sample.B = base::sample(A.NotA, size = input$LS2)
-        
-      }
-      else{
-        Sample.B = base::sample(Objects, size = input$LS2)
-      }
-      
-      Sample.C = base::sample(Objects, size = input$LS3)
-      
-    }
-    
-    d = list(A = Sample.A, B = Sample.B, C = Sample.C)
-    
-    d
+    generate_sample_data(total_population = input$total_population, 
+                         list1_size = input$list1_size, 
+                         list2_size = input$list2_size, 
+                         list3_size = input$list3_size, 
+                         list_dependence_binary = input$list_dependence_binary, 
+                         unequal_capture_prob_binary = input$unequal_capture_prob_binary)
     
   })
   
-  ObsCaptData = reactive({
+  observed_capture_data = reactive({
     
-    d = histpos.t(3)
-    Freq1 = length(intersect(intersect(Sample.Data()[["A"]],Sample.Data()[["B"]]),Sample.Data()[["C"]])) #In all
-    Freq2 = length(intersect(Sample.Data()[["A"]],Sample.Data()[["B"]])) - Freq1 #In A and B, but not C
-    Freq3 = length(intersect(Sample.Data()[["A"]],Sample.Data()[["C"]])) - Freq1 #In A and C, but not B
-    Freq4 = length(Sample.Data()[["A"]]) - Freq1 - Freq2 - Freq3 #In A only
-    Freq5 = length(intersect(Sample.Data()[["B"]],Sample.Data()[["C"]])) - Freq1 #In B and C, but not A
-    Freq6 = length(Sample.Data()[["B"]]) - Freq1 - Freq2 - Freq5 #In B only
-    Freq7 = length(Sample.Data()[["C"]]) - Freq1 - Freq3 - Freq5 #In C only
+    generate_observed_capture_data(data = sample_data())
     
-    #All frequences
-    Freq = c(Freq1,
-             Freq2,
-             Freq3,
-             Freq4,
-             Freq5,
-             Freq6,
-             Freq7
-    )
-    d = cbind(d,Freq)
-    d = as.data.frame(d)
-    colnames(d) = c("A", "B", "C", "Freq")
-    d
   })
   
-  results = reactive({
+  all_model_results = reactive({
     
-    closedpMS.t(ObsCaptData(),dfreq = TRUE)
+    closedpMS.t(observed_capture_data(),dfreq = TRUE)
     
   })
   
   
-  output$VennDiagram = renderPlot({
-    draw.triple.venn(area1 = sum(ObsCaptData()$Freq[c(1,2,3,4)]), 
-                     area2 = sum(ObsCaptData()$Freq[c(1,2,5,6)]),
-                     area3 = sum(ObsCaptData()$Freq[c(1,3,5,7)]),
-                     n12 = sum(ObsCaptData()$Freq[c(1,2)]),
-                     n23 = sum(ObsCaptData()$Freq[c(1,5)]),
-                     n13 = sum(ObsCaptData()$Freq[c(1,3)]),
-                     n123 = ObsCaptData()$Freq[1],
+  #################################################################
+  #                                                               #
+  #                         OUTPUTS                               #
+  #                                                               #
+  #################################################################
+  
+  output$venn_diagram = renderPlot({
+    draw.triple.venn(area1 = sum(observed_capture_data()$Freq[c(1,2,3,4)]), 
+                     area2 = sum(observed_capture_data()$Freq[c(1,2,5,6)]),
+                     area3 = sum(observed_capture_data()$Freq[c(1,3,5,7)]),
+                     n12 = sum(observed_capture_data()$Freq[c(1,2)]),
+                     n23 = sum(observed_capture_data()$Freq[c(1,5)]),
+                     n13 = sum(observed_capture_data()$Freq[c(1,3)]),
+                     n123 = observed_capture_data()$Freq[1],
                      category = c("List 1", "List 2", "List 3"),
                      fill = c("skyblue", "pink1", "mediumorchid"),
                      lty = "blank",
@@ -110,48 +83,35 @@ function(input, output, session) {
     )
   })
   
-  output$BarModel = renderPlot({
+  output$pdf_best_model = renderPlot({
     
-    index.best.est = which.min(abs(results()$results[,1] - input$TotalPop))
-    
-    ggplot(data = data.frame(x = c(0, 2*results()$results[index.best.est,1])), aes(x)) +
-      stat_function(fun = dnorm, n = 101, args = list(mean = results()$results[index.best.est,1], sd = results()$results[index.best.est,2])) + 
-      labs(x = "Population Estimate", y = "Probability", title = "Probability Distribution of Most Accurate Model") +
-      scale_y_continuous(breaks = NULL) +
-      scale_x_continuous(label=comma)
-    
+    plot_pdf_best_model(data = all_model_results(),
+                        total_population = input$total_population)
     
   })
   
-  output$EstRange = renderPlot({
-    
-    d = data.frame(id = 1:8,x = round(results()$results[,1]), y = 1:8, z = rep(input$TotalPop,8))
-    
-    ggplot(d, aes(x = x,y = y)) + 
-      geom_point(aes(x, shape = "Population Estimate")) + 
-      geom_line(aes(z, colour = "True Population")) + 
-      labs(x = "Population", y = "Model", title = "Range of Model Estimates") +
-      theme(legend.title=element_blank()) + 
-      scale_x_continuous(label=comma)
-    
+  output$model_estimates_range = renderPlot({
+
+    plot_model_estimates_range(data = all_model_results(),
+                               total_population = input$total_population)
     
   })
   
-  output$TotalPop <- renderValueBox({
+  output$total_population <- renderValueBox({
     
     valueBox(
-      comma(input$TotalPop), 
+      comma(input$total_population), 
       "True Total Population", 
       icon = icon("list"),
       color = "aqua"
     )
   })
   
-  output$TotalPopEst <- renderValueBox({
+  output$total_population_estimate <- renderValueBox({
     
-    index.best.est = which.min(abs(results()$results[,1] - input$TotalPop))
+    index.best.est = which.min(abs(all_model_results()$results[,1] - input$total_population))
     valueBox(
-      comma(round(results()$results[index.best.est,1])), 
+      comma(round(all_model_results()$results[index.best.est,1])), 
       "Estimated Total Population", 
       icon = icon("list"),
       color = "aqua"
@@ -159,9 +119,9 @@ function(input, output, session) {
     
   })
   
-  output$TotalPopError <- renderValueBox({
+  output$total_population__estimate_error <- renderValueBox({
     
-    d = round(min(abs(results()$results[,1] - input$TotalPop)))
+    d = round(min(abs(all_model_results()$results[,1] - input$total_population)))
     valueBox(
       comma(d), "Error", 
       icon = icon("exclamation-circle"),
@@ -169,20 +129,20 @@ function(input, output, session) {
     )
   })
   
-  output$PercPop <- renderValueBox({
+  output$percent_population_known <- renderValueBox({
     
     valueBox(
-      paste0(formatC(sum(ObsCaptData()$Freq)/input$TotalPop*100,1,format = "f"),"%"), 
+      paste0(formatC(sum(observed_capture_data()$Freq)/input$total_population*100,1,format = "f"),"%"), 
       "Known Percentage of Population", 
       icon = icon("pie-chart"),
       color = "olive"
     )
   })
   
-  output$ListPercOverlap = renderValueBox({
+  output$list_overlap_percentage = renderValueBox({
     
     valueBox(
-      paste0(formatC(length(intersect(Sample.Data()[["A"]],Sample.Data()[["B"]]))/length(Sample.Data()[["B"]])*100,1,format = "f"), "%"), 
+      paste0(formatC(length(intersect(sample_data()[["A"]],sample_data()[["B"]]))/length(sample_data()[["B"]])*100,1,format = "f"), "%"), 
       "Lists 1 and 2: Percentage Overlap", 
       icon = icon("pie-chart"), 
       color = "olive"
@@ -190,13 +150,9 @@ function(input, output, session) {
     
   })
   
-  output$dtable = renderDataTable({
+  output$all_model_estimates_table = renderDataTable({
     
-    d = as.data.frame(round(results()$results[,1:2]))
-    d = comma(arrange(d,desc(abundance)))
-    d = cbind(c("Model 1", "Model 2", "Model 3", "Model 4", "Model 5", "Model 6", "Model 7", "Model 8"), d)
-    colnames(d) = c("Model","EstimatedPopulation", "Standard Deviation")
-    d
+    get_all_model_estimates_table(data = all_model_results())
     
   })
   
