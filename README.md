@@ -1,6 +1,6 @@
-# Similar Government Contractors
+# Multiple Systems Estimation
 
-This is a repository for a Shiny application that runs [Multiple System Estimation](https://hrdag.org/2013/03/11/mse-the-basics/) (MSE) models on artificially generated data. MSE is a methodology for statistical inference and is often used for estimating the size of a population of interest. It uses overlap of incomplete lists to estimate the population size. This application is meant to be educational allowing the user to generate different size data sets and lists. There are also options for creating list dependencies and unequal probability of capture. The application was created using R Shiny.
+This is a repository for a Shiny application that runs [Multiple Systems Estimation](https://hrdag.org/2013/03/11/mse-the-basics/) (MSE) models on artificially generated data. MSE is a methodology for statistical inference and is often used for estimating the size of a population of interest. It uses overlap of incomplete lists to estimate the population size. This application is meant to be educational allowing the user to generate different size data sets and lists. There are also options for creating list dependencies and unequal probability of capture. The application was created using R Shiny.
 
 ## Getting Started
 
