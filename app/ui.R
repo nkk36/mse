@@ -70,6 +70,8 @@ Sidebar = dashboardSidebar(
 
 Body = dashboardBody(
   
+  tags$head(includeScript("google-analytics.js")),
+  
   fluidRow(
     
     valueBoxOutput(outputId = "total_population", 
